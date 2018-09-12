@@ -6,7 +6,6 @@ import nflgame
 
 main_df = pd.DataFrame()
 last_df = pd.DataFrame.from_csv("test.csv")
-
 def base_fantasy_points(player):
     """
     Baseline points consist of only passing, rushing, receiving, and extra
