@@ -80,4 +80,5 @@ for position in ['qb', 'rb', 'wr', 'te', 'defense', 'kicker']:
         df = json_normalize(data)
         main_df = main_df.append(df, ignore_index=True)
 
-main_df.to_csv("players.csv", index=False, columns=['first_name', 'last_name', 'position', 'team', 'next_game', 'opp', 'o_u', 'total_score', 'salary_dk', 'salary_fd', 'projected', 'last_pts', 'last_proj'])
+main_df['pct_change'] = (main_df.last_proj - main_df.last_pts)/main_df.last_proj * 100
+main_df.to_csv("players.csv", index=False, columns=['first_name', 'last_name', 'position', 'team', 'next_game', 'opp', 'o_u', 'total_score', 'salary_dk', 'salary_fd', 'projected', 'last_pts', 'last_proj', 'pct_change'])
