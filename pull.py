@@ -3,11 +3,14 @@ import json
 import pandas as pd
 from pandas.io.json import json_normalize
 import nflgame
+from pydfs_lineup_optimizer import Player
+from pydfs_lineup_optimizer import get_optimizer, Site, Sport
 
+print ("[*] Loading Data.")
 main_df = pd.DataFrame()
-last_df = pd.DataFrame.from_csv("test.csv")
+last_df = pd.read_csv("test.csv")
 last_df.fillna(0)
-print(last_df)
+
 def base_fantasy_points(player):
     """
     Baseline points consist of only passing, rushing, receiving, and extra
@@ -38,7 +41,9 @@ def base_fantasy_points(player):
 
 games = nflgame.games(2018, week=1)
 players = nflgame.combine_max_stats(games)
-
+optimizer = get_optimizer(Site.DRAFTKINGS, Sport.FOOTBALL)
+player_list = []
+print ("[*] Downloading projection data.")
 for position in ['qb', 'rb', 'wr', 'te', 'defense', 'kicker']:
     r = requests.get("https://d1qacz8ndd7avl.cloudfront.net/lineuphq/v1.00/2018-09-11/1/base/nfl-{}.json?timestamp=1536688800000".format(position)).json()
 
@@ -51,6 +56,10 @@ for position in ['qb', 'rb', 'wr', 'te', 'defense', 'kicker']:
         data['first_name'] = player_dict['player']['first_name']
         data['last_name'] = player_dict['player']['last_name']
         data['position'] = player_dict['player']['position']
+        if data['position'] == "D":
+            data['position'] = "DST"
+        elif data['position'] == "WR" or data['position'] == "RB" or data['position'] == "TE":
+            data['position'] = "{}/FLEX".format(data['position'])
         data['next_game'] = player_dict['schedule']['date']
         data['projected'] = player_dict['fpts']['2']
         data['o_u'] = player_dict['vegas']['o/u']
@@ -64,9 +73,9 @@ for position in ['qb', 'rb', 'wr', 'te', 'defense', 'kicker']:
             data['opp'] = player_dict['schedule']['team_home']['hashtag']
         for salary in player_dict['schedule']['salaries']:
             if salary['site_id'] == 2:
-                data['salary_fd'] = salary['salary']
+                data['salary_fd'] = float(salary['salary'])
             elif salary['site_id'] == 20:
-                data['salary_dk'] = salary['salary']
+                data['salary_dk'] = float(salary['salary'])
 
         for player in players:
             if player.player:
@@ -78,7 +87,21 @@ for position in ['qb', 'rb', 'wr', 'te', 'defense', 'kicker']:
         except:
             data['last_proj'] = 0
         df = json_normalize(data)
-        main_df = main_df.append(df, ignore_index=True)
+        main_df = main_df.append(df, ignore_index=True, sort=False)
+        try:
+            player_list.append(Player(int(player_dict['id']), str(data['first_name']), str(data['last_name']), data['position'].split("/"), data['team'], data['salary_dk'], float(data['projected'])))
+        except Exception as e:
+            continue
 
+print ("[*] Calculating percent change from last week.")
 main_df['pct_change'] = (main_df.last_pts - main_df.last_proj)/main_df.last_proj * 100
+
+print ("[*] Generating optimal lineups")
+optimizer.load_players(player_list)
+player = optimizer.get_player_by_name('Garoppolo')
+optimizer.add_player_to_lineup(player)
+for lineup in optimizer.optimize(n=5):
+    print (lineup)
+
+print ("[*] Outputing data")
 main_df.to_csv("players.csv", index=False, columns=['first_name', 'last_name', 'position', 'team', 'next_game', 'opp', 'o_u', 'total_score', 'salary_dk', 'salary_fd', 'projected', 'last_pts', 'last_proj', 'pct_change'])
