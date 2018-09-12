@@ -6,6 +6,8 @@ import nflgame
 
 main_df = pd.DataFrame()
 last_df = pd.DataFrame.from_csv("test.csv")
+last_df.fillna(0)
+print(last_df)
 def base_fantasy_points(player):
     """
     Baseline points consist of only passing, rushing, receiving, and extra
@@ -71,7 +73,10 @@ for position in ['qb', 'rb', 'wr', 'te', 'defense', 'kicker']:
                 if player.player.name == "{} {}".format(data['first_name'], data['last_name']):
                     pts = base_fantasy_points(player)
                     data['last_pts'] = pts
-        #data['last_proj'] = last_df['Name' == "{} {}".format(data['first_name'], data['last_name'])].Projected
+        try:
+            data['last_proj'] = last_df[last_df.Name == "{} {}".format(data['first_name'], data['last_name'])].Projected.values[0]
+        except:
+            data['last_proj'] = 0
         df = json_normalize(data)
         main_df = main_df.append(df, ignore_index=True)
 
